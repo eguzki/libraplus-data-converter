@@ -6,9 +6,11 @@ Convert libraplus data to Gesfincas data format
 HOWTO
 ========
 Check help for options:
+
     $ ./converter.sh -h
 
 Convert data:
+
     $ ./converter.sh [-v] [-f logfile] comunidad.data
 
 HEX ENCODER
