@@ -1,5 +1,10 @@
 *.py[co]
 
+# private data
+data
+exported
+testbed
+
 # Packages
 *.egg
 *.egg-info
