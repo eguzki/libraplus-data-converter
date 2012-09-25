@@ -32,6 +32,7 @@ LOCAL_PATTERN = re.compile("LOCAL")
 LOCAL_DATA_PATTERN = re.compile("-LOCAL (\d+)-")
 GARAJE_PATTERN  = re.compile("GARAJE")
 GARAJE_DATA_PATTERN  = re.compile("([GT]-\S+)")
+CUOTA_PATTERN = re.compile("\d+[.\d,]*")
 
 def comunidad_handler(line):
     """docstring for comunidad"""
@@ -112,7 +113,11 @@ def userData_handler5681(line):
         assert False, "register 5681 is neither a LOCAL nor GARAJE"
 
     data = line[28:].strip()
-    cuo.ptsrec= float(data[-7:].strip().replace(",", "."))
+    m = CUOTA_PATTERN.search(data)
+    if not m:
+        assert False, "Unknow cuota number on register 5681"
+
+    cuo.ptsrec= float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
 
 def userData_handler5682(line):
     """docstring for userDataHandler5682"""
@@ -127,7 +132,12 @@ def userData_handler5682(line):
     cuo.numcuota = 1
     cuo.titcuota = 1
     data = line[28:].strip()
-    cuo.ptsrec= float(data[-7:].strip().replace(",", "."))
+    m = CUOTA_PATTERN.search(data)
+    if not m:
+        assert False, "Unknow cuota number on register 5682"
+
+    cuo.ptsrec= float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
+    #cuo.ptsrec= float(data[-7:].strip().translate(None, ".").replace(",", "."))
 
 def userData_handler5684(line):
     """docstring for userDataHandler5684"""
@@ -197,10 +207,12 @@ def userData_handler5686(line):
             persona.calle = persona.calle[:m.start()].strip().strip(".").strip()
             pis_obj.piso = persona.piso
         else:
-            #persona.piso = ""
-            #persona.numcalle = 0
-            #pis_obj.piso = ""
-            assert False, ("Cannot parse VECINO at register 5686")
+            LOGGER.warning("Cannot parse VECINO at register 5686: %s",
+                           persona.calle)
+            persona.piso = ""
+            persona.numcalle = 0
+            pis_obj.piso = ""
+            #assert False, ("Cannot parse VECINO at register 5686")
     else:
         assert False, "Unknow cuota on register 5686"
 
