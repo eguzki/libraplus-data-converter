@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import logging
 import optparse
 import sys
@@ -20,9 +21,17 @@ RESULT = {
     "personas": []
 }
 
+CUOTAS = [(1,1), (2,11), (3,2), (4,8), (5, 5),
+          (6,9), (7,7), (8,8), (9,9), (10,10),
+          (11,11), (12,12)]
+
 LOGGER = None
-PISO_PORTAL_PATTERN  = re.compile("(\d+)-(\d+.*)")
-LOCAL_PATTERN  = re.compile("LOCAL")
+PISO_PORTAL_PATTERN_1 = re.compile("(\d+)-(\d+.*)")
+PISO_PORTAL_PATTERN_2 = re.compile("N\s+(\d+)\s+(\d+.*)")
+LOCAL_PATTERN = re.compile("LOCAL")
+LOCAL_DATA_PATTERN = re.compile("-LOCAL (\d+)-")
+GARAJE_PATTERN  = re.compile("GARAJE")
+GARAJE_DATA_PATTERN  = re.compile("([GT]-\S+)")
 
 def comunidad_handler(line):
     """docstring for comunidad"""
@@ -74,32 +83,51 @@ def new_user_handler(line):
         persona.numcta = 0
 
     RESULT["personas"].append(persona)
+    cuo = cuota.Cuota()
+    # Unset numcuota
+    cuo.numcuota = 0
+    RESULT["cuotas"].append(cuo)
     LOGGER.info("New propietario!: %2d: %s\n", persona.numprop,
                 persona.nombre.encode("latin1"))
 
 def userData_handler5681(line):
-    """docstring for userDataHandler5681"""
+    """
+    docstring for userDataHandler5681
+    CUOTA ANUAL LOCAL
+    CUOTA ANUAL GARAJE
+    """
     LOGGER.debug("%s", line)
-    cuo = cuota.Cuota()
+    persona = RESULT["personas"][-1]
+    cuo = RESULT["cuotas"][-1]
     cuo.numprop = int(line[24:28])
-    # 5681 associated to numcuota = 3
-    cuo.numcuota = 3
-    cuo.titcuota = 2
+    if LOCAL_PATTERN.search(line[28:]):
+        # 5681 associated to numcuota = 3
+        cuo.numcuota = 3
+        cuo.titcuota = 2
+    elif GARAJE_PATTERN.search(line[28:]):
+        # 5681 associated to numcuota = 2
+        cuo.numcuota = 2
+        cuo.titcuota = 11
+    else:
+        assert False, "register 5681 is neither a LOCAL nor GARAJE"
+
     data = line[28:].strip()
     cuo.ptsrec= float(data[-7:].strip().replace(",", "."))
-    RESULT["cuotas"].append(cuo)
 
 def userData_handler5682(line):
     """docstring for userDataHandler5682"""
     LOGGER.debug("%s", line)
-    cuo = cuota.Cuota()
-    cuo.numprop = int(line[24:28])
+    cuo = RESULT["cuotas"][-1]
     # 5682 associated to numcuota = 1
+    if cuo.numcuota != 0:
+        # There is a previous 5681 register, forget this one
+        return
+
+    cuo.numprop = int(line[24:28])
     cuo.numcuota = 1
     cuo.titcuota = 1
     data = line[28:].strip()
     cuo.ptsrec= float(data[-7:].strip().replace(",", "."))
-    RESULT["cuotas"].append(cuo)
 
 def userData_handler5684(line):
     """docstring for userDataHandler5684"""
@@ -110,8 +138,12 @@ def userData_handler5685(line):
     LOGGER.debug("%s", line)
 
 def userData_handler5686(line):
-    """docstring for userDataHandler5686"""
+    """
+    docstring for userDataHandler5686
+    It is known cuota type (garaje, local, vecino)
+    """
     LOGGER.debug("%s", line)
+    cuo = RESULT["cuotas"][-1]
     persona = RESULT["personas"][-1]
     persona.via = line[68:71].strip()
     persona.pobla = line[108:116].strip()
@@ -122,20 +154,55 @@ def userData_handler5686(line):
     pis_obj.numprop = persona.numprop
     pis_obj.numasocia = persona.numprop
 
-    m = PISO_PORTAL_PATTERN.search(persona.calle)
-    if m:
-        persona.piso = m.group(2)
-        persona.numcalle = int(m.group(1))
-        persona.calle = persona.calle[:m.start()]
-        pis_obj.piso = m.group(2)
-    elif LOCAL_PATTERN.search(persona.calle):
-        persona.piso = "LOCAL"
-        persona.numcalle = 0
-        pis_obj.piso = "LOCAL"
+    # Pattern matching depending on cuota type
+    m = None
+    if cuo.numcuota == 3:
+        #LOCAL
+        m = LOCAL_DATA_PATTERN.search(persona.calle)
+        if m:
+            persona.piso = "LOCAL %d" % int(m.group(1))
+            persona.numcalle = 0
+        else:
+            LOGGER.warning("Cannot parse LOCAL at register 5686: %s",
+                           persona.calle)
+            persona.piso = "LOCAL"
+            persona.numcalle = 0
+
+        pis_obj.piso = persona.piso
+    elif cuo.numcuota == 2:
+        #GARAJE
+        m = GARAJE_DATA_PATTERN.search(persona.calle)
+        if m:
+            persona.piso = "%s" % m.group(1)
+            persona.numcalle = 0
+        else:
+            LOGGER.warning("Cannot parse GARAGE at register 5686: %s",
+                           persona.calle)
+            persona.piso = "GARAJE"
+            persona.numcalle = 0
+
+        pis_obj.piso = persona.piso
+    elif cuo.numcuota == 1:
+        # VECINO
+        m_1 = PISO_PORTAL_PATTERN_1.search(persona.calle)
+        m_2 = PISO_PORTAL_PATTERN_2.search(persona.calle)
+        if m_1:
+            m = m_1
+        elif m_2:
+            m = m_2
+
+        if m:
+            persona.piso = m.group(2).strip()
+            persona.numcalle = int(m.group(1))
+            persona.calle = persona.calle[:m.start()].strip().strip(".").strip()
+            pis_obj.piso = persona.piso
+        else:
+            #persona.piso = ""
+            #persona.numcalle = 0
+            #pis_obj.piso = ""
+            assert False, ("Cannot parse VECINO at register 5686")
     else:
-        persona.piso = ""
-        persona.numcalle = 0
-        pis_obj.piso = ""
+        assert False, "Unknow cuota on register 5686"
 
     RESULT["pisos"].append(pis_obj)
 
@@ -145,7 +212,7 @@ def end_of_file(line):
     # Compute numComu
     numcomu = min ( [ divmod(persona.numprop, 100)[0] for persona in RESULT["personas"] ] )
     # Override numcomu for testing
-    #numcomu = 10
+    #numcomu = 11
     RESULT["comunidad"].numcomu = numcomu
     for persona in RESULT["personas"]:
         persona.numcomu = numcomu
@@ -201,40 +268,50 @@ def convert(filename, file_dir, encoding="utf8"):
     out_file = open(os.path.join(file_dir, "WCUOTAS.TXT"), 'w')
     for entity in sorted ( RESULT["cuotas"], key=lambda x: x.numprop ):
         cuotas = []
-        if (entity.numcuota == 1):
-            # Regular case
-            cuotas.append(entity)
-            for numcuota, titcuota in [(2,11), (3,2), (4,8), (5, 5),
-                                       (6,9), (7,7), (8,8), (9,9), (10,10),
-                                       (11,11), (12,12)]:
+        for c_index_numcuota, c_index_titcuota in CUOTAS:
+            if entity.numcuota == c_index_numcuota:
+                cuotas.append(entity)
+            else:
                 cuo = cuota.Cuota(entity)
-                cuo.numcuota = numcuota
-                cuo.titcuota = titcuota
+                cuo.numcuota = c_index_numcuota
+                cuo.titcuota = c_index_titcuota
                 cuo.ptsrec = 0
                 cuotas.append(cuo)
-        else:
-            # Irregular case
-            cuo = cuota.Cuota(entity)
-            cuo.numcuota = 1
-            cuo.titcuota = 1
-            cuo.ptsrec = 0
-            cuotas.append(cuo)
-            cuo = cuota.Cuota(entity)
-            cuo.numcuota = 2
-            cuo.titcuota = 11
-            cuo.ptsrec = 0
-            cuotas.append(cuo)
-            # Append parsed data
-            cuotas.append(entity)
-            # Append the rest
-            for numcuota, titcuota in [(4,8), (5, 5),
-                                       (6,9), (7,7), (8,8), (9,9), (10,10),
-                                       (11,11), (12,12)]:
-                cuo = cuota.Cuota(entity)
-                cuo.numcuota = numcuota
-                cuo.titcuota = titcuota
-                cuo.ptsrec = 0
-                cuotas.append(cuo)
+
+#        if (entity.numcuota == 1):
+#            # Regular case
+#            cuotas.append(entity)
+#            for numcuota, titcuota in [(2,11), (3,2), (4,8), (5, 5),
+#                                       (6,9), (7,7), (8,8), (9,9), (10,10),
+#                                       (11,11), (12,12)]:
+#                cuo = cuota.Cuota(entity)
+#                cuo.numcuota = numcuota
+#                cuo.titcuota = titcuota
+#                cuo.ptsrec = 0
+#                cuotas.append(cuo)
+#        else:
+#            # Irregular case
+#            cuo = cuota.Cuota(entity)
+#            cuo.numcuota = 1
+#            cuo.titcuota = 1
+#            cuo.ptsrec = 0
+#            cuotas.append(cuo)
+#            cuo = cuota.Cuota(entity)
+#            cuo.numcuota = 2
+#            cuo.titcuota = 11
+#            cuo.ptsrec = 0
+#            cuotas.append(cuo)
+#            # Append parsed data
+#            cuotas.append(entity)
+#            # Append the rest
+#            for numcuota, titcuota in [(4,8), (5, 5),
+#                                       (6,9), (7,7), (8,8), (9,9), (10,10),
+#                                       (11,11), (12,12)]:
+#                cuo = cuota.Cuota(entity)
+#                cuo.numcuota = numcuota
+#                cuo.titcuota = titcuota
+#                cuo.ptsrec = 0
+#                cuotas.append(cuo)
 
         for cuo in cuotas:
             cuo.write(out_file)

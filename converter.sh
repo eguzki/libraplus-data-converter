@@ -5,8 +5,15 @@ set -e
 
 get_abs_path()
 {
-    local PARENT_DIR=$(dirname "$1")
-    echo "`cd $PARENT_DIR; pwd`/$(basename $1)"
+    if [ -d $1 ] ; then
+        # It's a dir
+        local PARENT_DIR="$1"
+        echo "`cd $PARENT_DIR; pwd`"
+    else 
+        # It's a file
+        local PARENT_DIR=$(dirname "$1")
+        echo "`cd $PARENT_DIR; pwd`/$(basename $1)"
+    fi
 }
 
 usage() 
@@ -25,6 +32,7 @@ EOF
     exit $E_BADARGS
 } 
 
+CURR_DIR=$(get_abs_path `pwd`)
 LOG_LEVEL="info"
 LOG_FILE="log/converter_`date +%Y.%m.%d-%H.%M.%S`.log"
 ENCODING="latin1"
@@ -65,14 +73,16 @@ DATA_FILE=$(get_abs_path $1)
 mkdir -p `dirname "$LOG_FILE"`
 LOG_FILE=$(get_abs_path $LOG_FILE)
 
+WORKSPACE=$(get_abs_path `dirname "$0"`)
+
+OUTPUT_DIR="${CURR_DIR}/OUTPUT_`date +%Y.%m.%d-%H.%M.%S`"
+
 echo "log_level: $LOG_LEVEL"
 echo "log_file: $LOG_FILE"
 echo "encoding: $ENCODING"
 echo "data_file: $DATA_FILE"
+echo "output_file: $OUTPUT_DIR"
 
-
-#NEW_PATH="`dirname $(get_abs_path $0)`/workspace/euskadikokutxa"
-#export PYTHONPATH=$PYTHONPATH:$NEW_PATH
-OUTPUT_DIR="`dirname "$0"`/OUTPUT_`date +%Y.%m.%d-%H.%M.%S`"
-
+cd $WORKSPACE
 python workspace/euskadikokutxa/converter.py -l $LOG_LEVEL -f "$LOG_FILE" -e $ENCODING -o $OUTPUT_DIR $DATA_FILE
+
