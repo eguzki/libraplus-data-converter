@@ -29,12 +29,12 @@ LOGGER = None
 PISO_PORTAL_PATTERN_1 = re.compile("(\d+)-(\d+.*)")
 PISO_PORTAL_PATTERN_2 = re.compile("N\s+(\d+)\s+(\d+.*)")
 LOCAL_PATTERN = re.compile("LOCAL")
-LOCAL_DATA_PATTERN = re.compile("-LOCAL (\d+)-")
+#LOCAL_DATA_PATTERN = re.compile("-LOCAL (\d+)-")
 GARAJE_PATTERN  = re.compile("GARAJE")
-GARAJE_DATA_PATTERN  = re.compile("([GT]-\S+)")
-CUOTA_PATTERN = re.compile("\d+[.\d,]*")
+#GARAJE_DATA_PATTERN  = re.compile("([GT]-\S+)")
+CUOTA_PATTERN = re.compile("\d+[.\d,]*\s*$")
 
-def comunidad_handler(line):
+def userData_handler5380(line):
     """docstring for comunidad"""
     LOGGER.debug("%s", line)
     comu = comunidad.Comunidad()
@@ -42,7 +42,7 @@ def comunidad_handler(line):
     RESULT["comunidad"] = comu
     LOGGER.info("New comunidad!: %s\n", comu.nombre)
 
-def new_user_handler(line):
+def userData_handler5680(line):
     """
     New user register
     5680H31927627001000000004903BIURRUN ETXERA, IÑAKITX                 2054000042000062905100000090000005990000000004 SEPTIEMBRE-11
@@ -52,36 +52,36 @@ def new_user_handler(line):
     comu = RESULT["comunidad"]
     persona.numprop = int(line[24:28])
     persona.nombre = line[28:68].strip()
-    try:
-        try:
-            persona.banco = int(line[68:72])
-        except:
-            LOGGER.warning("usuario: %d, codigo banco no reconocido: %s",
-                       persona.numprop, line[68:72])
-            raise Exception()
-        try:
-            persona.sucursal = int(line[72:76])
-        except:
-            LOGGER.warning("usuario: %d, codigo sucursal no reconocido: %s",
-                       persona.numprop, line[72:76])
-            raise Exception()
-        try:
-            persona.dccuenta = int(line[76:78])
-        except:
-            LOGGER.warning("usuario: %d, codigo cuenta no reconocido: %s",
-                       persona.numprop, line[76:78])
-            raise Exception()
-        try:
-            persona.numcta = int(line[78:88])
-        except:
-            LOGGER.warning("usuario: %d, numero de cuenta no reconocido: %s",
-                       persona.numprop, line[78:88])
-            raise Exception()
-    except:
-        persona.banco = 0
-        persona.sucursal = 0
-        persona.dccuenta = 0
-        persona.numcta = 0
+#    try:
+#        try:
+    persona.banco = line[68:72]
+#        except:
+#            LOGGER.warning("usuario: %d, codigo banco no reconocido: %s",
+#                       persona.numprop, line[68:72])
+#            raise Exception()
+#        try:
+    persona.sucursal = line[72:76]
+#        except:
+#            LOGGER.warning("usuario: %d, codigo sucursal no reconocido: %s",
+#                       persona.numprop, line[72:76])
+#            raise Exception()
+#        try:
+    persona.dccuenta = line[76:78]
+#        except:
+#            LOGGER.warning("usuario: %d, codigo cuenta no reconocido: %s",
+#                       persona.numprop, line[76:78])
+#            raise Exception()
+#        try:
+    persona.numcta = line[78:88]
+#        except:
+#            LOGGER.warning("usuario: %d, numero de cuenta no reconocido: %s",
+#                       persona.numprop, line[78:88])
+#            raise Exception()
+#    except:
+#        persona.banco = 0
+#        persona.sucursal = 0
+#        persona.dccuenta = 0
+#        persona.numcta = 0
 
     RESULT["personas"].append(persona)
     cuo = cuota.Cuota()
@@ -139,6 +139,27 @@ def userData_handler5682(line):
     cuo.ptsrec= float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
     #cuo.ptsrec= float(data[-7:].strip().translate(None, ".").replace(",", "."))
 
+def userData_handler5683(line):
+    """
+    New user register
+    5683H31346026001000000002265 CUOTA ANUAL TRASTERO(13)         60,10
+    """
+    LOGGER.debug("%s", line)
+    cuo = RESULT["cuotas"][-1]
+    # 5683 associated to numcuota = ?
+    if cuo.numcuota != 0:
+        # There is a previous 5681 or 5682 register, forget this one
+        return
+    cuo.numprop = int(line[24:28])
+    cuo.numcuota = 4
+    cuo.titcuota = 8
+    data = line[28:].strip()
+    m = CUOTA_PATTERN.search(data)
+    if not m:
+        assert False, "Unknow cuota number on register 5683"
+
+    cuo.ptsrec= float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
+
 def userData_handler5684(line):
     """docstring for userDataHandler5684"""
     LOGGER.debug("%s", line)
@@ -166,30 +187,39 @@ def userData_handler5686(line):
 
     # Pattern matching depending on cuota type
     m = None
-    if cuo.numcuota == 3:
+    if cuo.numcuota == 4:
+        # TRASTERO
+        persona.piso = persona.calle
+        persona.numcalle = 0
+        pis_obj.piso = persona.piso
+    elif cuo.numcuota == 3:
         #LOCAL
-        m = LOCAL_DATA_PATTERN.search(persona.calle)
-        if m:
-            persona.piso = "LOCAL %d" % int(m.group(1))
-            persona.numcalle = 0
-        else:
-            LOGGER.warning("Cannot parse LOCAL at register 5686: %s",
-                           persona.calle)
-            persona.piso = "LOCAL"
-            persona.numcalle = 0
+        persona.piso = persona.calle
+        persona.numcalle = 0
+        #m = LOCAL_DATA_PATTERN.search(persona.calle)
+        #if m:
+        #    persona.piso = "LOCAL %d" % int(m.group(1))
+        #    persona.numcalle = 0
+        #else:
+        #    LOGGER.warning("Cannot parse LOCAL at register 5686: %s",
+        #                   persona.calle)
+        #    persona.piso = "LOCAL"
+        #    persona.numcalle = 0
 
         pis_obj.piso = persona.piso
     elif cuo.numcuota == 2:
         #GARAJE
-        m = GARAJE_DATA_PATTERN.search(persona.calle)
-        if m:
-            persona.piso = "%s" % m.group(1)
-            persona.numcalle = 0
-        else:
-            LOGGER.warning("Cannot parse GARAGE at register 5686: %s",
-                           persona.calle)
-            persona.piso = "GARAJE"
-            persona.numcalle = 0
+        persona.piso = persona.calle
+        persona.numcalle = 0
+        #m = GARAJE_DATA_PATTERN.search(persona.calle)
+        #if m:
+        #    persona.piso = "%s" % m.group(1)
+        #    persona.numcalle = 0
+        #else:
+        #    LOGGER.warning("Cannot parse GARAGE at register 5686: %s",
+        #                   persona.calle)
+        #    persona.piso = "GARAJE"
+        #    persona.numcalle = 0
 
         pis_obj.piso = persona.piso
     elif cuo.numcuota == 1:
@@ -240,11 +270,11 @@ def nop(line):
 
 CODES = {
     '5180': nop,
-    '5380': comunidad_handler,
-    '5680': new_user_handler,
+    '5380': userData_handler5380,
+    '5680': userData_handler5680,
     '5681': userData_handler5681,
     '5682': userData_handler5682,
-    '5683': nop,
+    '5683': userData_handler5683,
     '5684': userData_handler5684,
     '5685': userData_handler5685,
     '5686': userData_handler5686,
@@ -289,41 +319,6 @@ def convert(filename, file_dir, encoding="utf8"):
                 cuo.titcuota = c_index_titcuota
                 cuo.ptsrec = 0
                 cuotas.append(cuo)
-
-#        if (entity.numcuota == 1):
-#            # Regular case
-#            cuotas.append(entity)
-#            for numcuota, titcuota in [(2,11), (3,2), (4,8), (5, 5),
-#                                       (6,9), (7,7), (8,8), (9,9), (10,10),
-#                                       (11,11), (12,12)]:
-#                cuo = cuota.Cuota(entity)
-#                cuo.numcuota = numcuota
-#                cuo.titcuota = titcuota
-#                cuo.ptsrec = 0
-#                cuotas.append(cuo)
-#        else:
-#            # Irregular case
-#            cuo = cuota.Cuota(entity)
-#            cuo.numcuota = 1
-#            cuo.titcuota = 1
-#            cuo.ptsrec = 0
-#            cuotas.append(cuo)
-#            cuo = cuota.Cuota(entity)
-#            cuo.numcuota = 2
-#            cuo.titcuota = 11
-#            cuo.ptsrec = 0
-#            cuotas.append(cuo)
-#            # Append parsed data
-#            cuotas.append(entity)
-#            # Append the rest
-#            for numcuota, titcuota in [(4,8), (5, 5),
-#                                       (6,9), (7,7), (8,8), (9,9), (10,10),
-#                                       (11,11), (12,12)]:
-#                cuo = cuota.Cuota(entity)
-#                cuo.numcuota = numcuota
-#                cuo.titcuota = titcuota
-#                cuo.ptsrec = 0
-#                cuotas.append(cuo)
 
         for cuo in cuotas:
             cuo.write(out_file)

@@ -72,13 +72,17 @@ class User(object):
 #20  TFNO3   Caracter    10              No
 #21  FAX     Caracter    10              No
 #22  BANCO   Numerico    4               No
-        reg[355:359] = "%4d" % self.banco
+        data = self.banco[:4].encode("latin1")
+        reg[355:359] = "%4s" % data
 #23  SUCURSAL    Numerico    4               No
-        reg[359:363] = "%4d" % self.sucursal
+        data = self.sucursal[:4].encode("latin1")
+        reg[359:363] = "%4s" % data
 #24  DCCUENTA    Caracter    2               No
-        reg[363:365] = "%2d" % self.dccuenta
+        data = self.dccuenta[:2].encode("latin1")
+        reg[363:365] = "%2s" % data
 #25  NUMCTA  Numerico    10              No
-        reg[365:375] = "%10d" % self.numcta
+        data = self.numcta[:10].encode("latin1")
+        reg[365:375] = "%10s" % data
 #26  CORREO  Caracter    50              No
 #27  MODOPAGO    Caracter    1               No
 #28  TIPOPER     Caracter    1               No
