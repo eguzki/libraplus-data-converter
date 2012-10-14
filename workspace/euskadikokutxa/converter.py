@@ -46,47 +46,31 @@ def userData_handler5680(line):
     """
     New user register
     5680H31927627001000000004903BIURRUN ETXERA, IÑAKITX                 2054000042000062905100000090000005990000000004 SEPTIEMBRE-11
+    5680H31886872000000000009704ASURMENDI FERNANDEZ, JESUS MARIA        3008007310151731601200000062090006540000000086 CUOTA MENSUAL 62,09
     """
     LOGGER.debug("%s", line)
     persona = user.User()
     comu = RESULT["comunidad"]
     persona.numprop = int(line[24:28])
     persona.nombre = line[28:68].strip()
-#    try:
-#        try:
     persona.banco = line[68:72]
-#        except:
-#            LOGGER.warning("usuario: %d, codigo banco no reconocido: %s",
-#                       persona.numprop, line[68:72])
-#            raise Exception()
-#        try:
     persona.sucursal = line[72:76]
-#        except:
-#            LOGGER.warning("usuario: %d, codigo sucursal no reconocido: %s",
-#                       persona.numprop, line[72:76])
-#            raise Exception()
-#        try:
     persona.dccuenta = line[76:78]
-#        except:
-#            LOGGER.warning("usuario: %d, codigo cuenta no reconocido: %s",
-#                       persona.numprop, line[76:78])
-#            raise Exception()
-#        try:
     persona.numcta = line[78:88]
-#        except:
-#            LOGGER.warning("usuario: %d, numero de cuenta no reconocido: %s",
-#                       persona.numprop, line[78:88])
-#            raise Exception()
-#    except:
-#        persona.banco = 0
-#        persona.sucursal = 0
-#        persona.dccuenta = 0
-#        persona.numcta = 0
 
     RESULT["personas"].append(persona)
     cuo = cuota.Cuota()
-    # Unset numcuota
-    cuo.numcuota = 0
+
+    data = line[28:].strip()
+    m = CUOTA_PATTERN.search(data)
+    if m:
+        cuo.numprop = persona.numprop
+        cuo.numcuota = 1
+        cuo.titcuota = 1
+        cuo.ptsrec= float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
+    else:
+        cuo.numcuota = 0
+
     RESULT["cuotas"].append(cuo)
     LOGGER.info("New propietario!: %2d: %s\n", persona.numprop,
                 persona.nombre.encode("latin1"))
@@ -196,31 +180,11 @@ def userData_handler5686(line):
         #LOCAL
         persona.piso = persona.calle
         persona.numcalle = 0
-        #m = LOCAL_DATA_PATTERN.search(persona.calle)
-        #if m:
-        #    persona.piso = "LOCAL %d" % int(m.group(1))
-        #    persona.numcalle = 0
-        #else:
-        #    LOGGER.warning("Cannot parse LOCAL at register 5686: %s",
-        #                   persona.calle)
-        #    persona.piso = "LOCAL"
-        #    persona.numcalle = 0
-
         pis_obj.piso = persona.piso
     elif cuo.numcuota == 2:
         #GARAJE
         persona.piso = persona.calle
         persona.numcalle = 0
-        #m = GARAJE_DATA_PATTERN.search(persona.calle)
-        #if m:
-        #    persona.piso = "%s" % m.group(1)
-        #    persona.numcalle = 0
-        #else:
-        #    LOGGER.warning("Cannot parse GARAGE at register 5686: %s",
-        #                   persona.calle)
-        #    persona.piso = "GARAJE"
-        #    persona.numcalle = 0
-
         pis_obj.piso = persona.piso
     elif cuo.numcuota == 1:
         # VECINO
@@ -239,10 +203,9 @@ def userData_handler5686(line):
         else:
             LOGGER.warning("Cannot parse VECINO at register 5686: %s",
                            persona.calle)
-            persona.piso = ""
+            persona.piso = persona.calle
             persona.numcalle = 0
-            pis_obj.piso = ""
-            #assert False, ("Cannot parse VECINO at register 5686")
+            pis_obj.piso = persona.piso
     else:
         assert False, "Unknow cuota on register 5686"
 
@@ -281,7 +244,7 @@ CODES = {
     '5880': end_of_file,
 }
 
-def convert(filename, file_dir, encoding="utf8"):
+def convert(filename, file_dir, encoding="latin1"):
     """docstring for splitter"""
     file_object = codecs.open(filename, mode = 'r', encoding = encoding)
     for line in file_object.readlines():
@@ -341,7 +304,7 @@ def main():
     parser = optparse.OptionParser()
     parser.add_option('-l', '--logging-level', help='Logging level')
     parser.add_option('-f', '--logging-file', help='Logging file name')
-    parser.add_option('-e', '--encoding', help='file encoding')
+    parser.add_option('-e', '--encoding', help='file encoding', default="latin1")
     parser.add_option('-o', '--output', help='output dir')
     (options, args) = parser.parse_args()
     logging_level = LOGGING_LEVELS.get(options.logging_level, logging.NOTSET)

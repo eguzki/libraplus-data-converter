@@ -5,6 +5,19 @@ Convert libraplus data to Gesfincas data format
 
 HOWTO
 ========
+
+1.- Split data files into single-comunity files
+
+Check help for options:
+
+    $ ./splitter.sh -h
+
+Split file:
+
+    $ ./splitter.sh comunidades.data
+
+2.- Convert files
+
 Check help for options:
 
     $ ./converter.sh -h
