@@ -32,7 +32,7 @@ LOCAL_PATTERN = re.compile("LOCAL")
 #LOCAL_DATA_PATTERN = re.compile("-LOCAL (\d+)-")
 GARAJE_PATTERN  = re.compile("GARAJE")
 #GARAJE_DATA_PATTERN  = re.compile("([GT]-\S+)")
-CUOTA_PATTERN = re.compile("\d+[.\d,]*\s*$")
+CUOTA_PATTERN = re.compile("\s\d+[.\d,]*\s*$")
 
 def userData_handler5380(line):
     """docstring for comunidad"""
@@ -217,7 +217,7 @@ def end_of_file(line):
     # Compute numComu
     numcomu = min ( [ divmod(persona.numprop, 100)[0] for persona in RESULT["personas"] ] )
     # Override numcomu for testing
-    #numcomu = 11
+    #numcomu = 70
     RESULT["comunidad"].numcomu = numcomu
     for persona in RESULT["personas"]:
         persona.numcomu = numcomu
