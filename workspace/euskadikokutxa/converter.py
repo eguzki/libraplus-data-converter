@@ -29,9 +29,8 @@ LOGGER = None
 PISO_PORTAL_PATTERN_1 = re.compile("(\d+)-(\d+.*)")
 PISO_PORTAL_PATTERN_2 = re.compile("N\s+(\d+)\s+(\d+.*)")
 LOCAL_PATTERN = re.compile("LOCAL")
-#LOCAL_DATA_PATTERN = re.compile("-LOCAL (\d+)-")
 GARAJE_PATTERN  = re.compile("GARAJE")
-#GARAJE_DATA_PATTERN  = re.compile("([GT]-\S+)")
+GENERIC_CUOTA_ANUAL_PATTERN  = re.compile("CUOTA ANUAL\s+\d+[.\d,]*\s*$")
 CUOTA_PATTERN = re.compile("\s\d+[.\d,]*\s*$")
 
 def userData_handler5380(line):
@@ -90,7 +89,8 @@ def userData_handler5681(line):
         # 5681 associated to numcuota = 3
         cuo.numcuota = 3
         cuo.titcuota = 2
-    elif GARAJE_PATTERN.search(line[28:]):
+    elif (GARAJE_PATTERN.search(line[28:]) or 
+          GENERIC_CUOTA_ANUAL_PATTERN.search(line[28:])):
         # 5681 associated to numcuota = 2
         cuo.numcuota = 2
         cuo.titcuota = 11
