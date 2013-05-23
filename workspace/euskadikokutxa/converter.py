@@ -80,6 +80,7 @@ def userData_handler5681(line):
     docstring for userDataHandler5681
     CUOTA ANUAL LOCAL
     CUOTA ANUAL GARAJE
+    CUOTA ANUAL 
     """
     LOGGER.debug("%s", line)
     persona = RESULT["personas"][-1]
