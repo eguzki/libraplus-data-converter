@@ -6,7 +6,7 @@ import os
 import re
 from datetime import datetime
 import codecs
-from entity import comunidad, cuota, piso, user
+from entity import comunidad, cuota, piso, user, cuotaCollection
 
 LOGGING_LEVELS = {'critical': logging.CRITICAL,
                   'error': logging.ERROR,
@@ -30,7 +30,9 @@ PISO_PORTAL_PATTERN_1 = re.compile("(\d+)-(\d+.*)")
 PISO_PORTAL_PATTERN_2 = re.compile("N\s+(\d+)\s+(\d+.*)")
 LOCAL_PATTERN = re.compile("LOCAL")
 GARAJE_PATTERN  = re.compile("GARAJE")
-GENERIC_CUOTA_ANUAL_PATTERN  = re.compile("CUOTA ANUAL\s+\d+[.\d,]*\s*$")
+GENERIC_CUOTA_ANUAL_PATTERN = re.compile("CUOTA ANUAL\s+\d+[.\d,]*\s*$")
+COMUNIDAD_CUOTA_PATTERN = re.compile("CUOTA COMUNIDAD\s+\d+[.\d,]*\s*$")
+CUOTA_EXTRA_PATTERN = re.compile("CUOTA EXTRA")
 CUOTA_PATTERN = re.compile("\s\d+[.\d,]*\s*$")
 
 def userData_handler5380(line):
@@ -58,19 +60,21 @@ def userData_handler5680(line):
     persona.numcta = line[78:88]
 
     RESULT["personas"].append(persona)
-    cuo = cuota.Cuota()
+    cuotas = cuotaCollection.CuotaCollection()
+    RESULT["cuotas"].append(cuotas)
+
+    cuotas.numprop = persona.numprop
 
     data = line[28:].strip()
     m = CUOTA_PATTERN.search(data)
     if m:
-        cuo.numprop = persona.numprop
-        cuo.numcuota = 1
-        cuo.titcuota = 1
-        cuo.ptsrec= float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
-    else:
-        cuo.numcuota = 0
+        #cuo.numcuota = 1
+        #cuo.titcuota = 1
+        cuotas.cuotas[1] = {
+                "titcuota": 1,
+                "ptsrec": float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
+                }
 
-    RESULT["cuotas"].append(cuo)
     LOGGER.info("New propietario!: %2d: %s\n", persona.numprop,
                 persona.nombre.encode("latin1"))
 
@@ -83,46 +87,72 @@ def userData_handler5681(line):
     """
     LOGGER.debug("%s", line)
     persona = RESULT["personas"][-1]
-    cuo = RESULT["cuotas"][-1]
-    cuo.numprop = int(line[24:28])
+    cuotas = RESULT["cuotas"][-1]
+    cuotas.numprop = int(line[24:28])
+    cuoObject = {
+            "titcuota": 0,
+            "ptsrec": 0.0
+            }
+
     if LOCAL_PATTERN.search(line[28:]):
-        # 5681 associated to numcuota = 3
-        cuo.numcuota = 3
-        cuo.titcuota = 2
+        # 5681 associated to numcuota = 3, titcuota = 2
+        cuoObject["titcuota"] = 2
+        cuotas.cuotas[3] = cuoObject
     elif (GARAJE_PATTERN.search(line[28:]) or 
           GENERIC_CUOTA_ANUAL_PATTERN.search(line[28:])):
-        # 5681 associated to numcuota = 2
-        cuo.numcuota = 2
-        cuo.titcuota = 11
+        # 5681 associated to numcuota = 2, titcuota = 11
+        cuoObject["titcuota"] = 11
+        cuotas.cuotas[2] = cuoObject
+    elif COMUNIDAD_CUOTA_PATTERN.search(line[28:]):
+        # 5681 associated to numcuota = 1, titcuota = 1
+        cuoObject["titcuota"] = 1
+        cuotas.cuotas[1] = cuoObject
     else:
-        assert False, "register 5681 is neither a LOCAL nor GARAJE"
+        assert False, "register 5681 is neither a LOCAL nor GARAJE "
+        "nor CUOTA ANUAL not CUOTA COMUNIDAD"
 
     data = line[28:].strip()
     m = CUOTA_PATTERN.search(data)
     if not m:
         assert False, "Unknow cuota number on register 5681"
 
-    cuo.ptsrec= float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
+    cuoObject["ptsrec"] = float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
 
 def userData_handler5682(line):
     """docstring for userDataHandler5682"""
     LOGGER.debug("%s", line)
-    cuo = RESULT["cuotas"][-1]
-    # 5682 associated to numcuota = 1
-    if cuo.numcuota != 0:
+    cuotas = RESULT["cuotas"][-1]
+
+    #import pdb
+    #pdb.set_trace()
+    cuotas.numprop = int(line[24:28])
+
+    cuoObject = {
+            "titcuota": 0,
+            "ptsrec": 0.0
+            }
+
+    # Check there is extra,
+    # in this case, we are adding one cuota register to RESULT["cuotas"]
+    # otherwise, associate to numcuota=1 unless it was already assigned
+    if CUOTA_EXTRA_PATTERN.search(line[28:]):
+        # 5682 associated to numcuota = 4, titcuota = 8
+        cuoObject["titcuota"] = 8
+        cuotas.cuotas[4] = cuoObject
+    elif len(cuotas.cuotas) != 0:
         # There is a previous 5681 register, forget this one
         return
+    else:
+        # 5682 associated to numcuota = 1, titcuota = 1
+        cuoObject["titcuota"] = 1
+        cuotas.cuotas[1] = cuoObject
 
-    cuo.numprop = int(line[24:28])
-    cuo.numcuota = 1
-    cuo.titcuota = 1
     data = line[28:].strip()
     m = CUOTA_PATTERN.search(data)
     if not m:
         assert False, "Unknow cuota number on register 5682"
 
-    cuo.ptsrec= float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
-    #cuo.ptsrec= float(data[-7:].strip().translate(None, ".").replace(",", "."))
+    cuoObject["ptsrec"] = float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
 
 def userData_handler5683(line):
     """
@@ -130,20 +160,26 @@ def userData_handler5683(line):
     5683H31346026001000000002265 CUOTA ANUAL TRASTERO(13)         60,10
     """
     LOGGER.debug("%s", line)
-    cuo = RESULT["cuotas"][-1]
+    cuotas = RESULT["cuotas"][-1]
+
     # 5683 associated to numcuota = ?
-    if cuo.numcuota != 0:
+    if len(cuotas.cuotas) != 0:
         # There is a previous 5681 or 5682 register, forget this one
         return
-    cuo.numprop = int(line[24:28])
-    cuo.numcuota = 4
-    cuo.titcuota = 8
+
+    cuotas.numprop = int(line[24:28])
+    # 5683 associated to numcuota = 4, titcuota = 8
+    cuoObject = {
+            "titcuota": 8,
+            "ptsrec": 0.0
+            }
+    cuotas.cuotas[4] = cuoObject
     data = line[28:].strip()
     m = CUOTA_PATTERN.search(data)
     if not m:
         assert False, "Unknow cuota number on register 5683"
 
-    cuo.ptsrec= float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
+    cuoObject["ptsrec"] = float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
 
 def userData_handler5684(line):
     """docstring for userDataHandler5684"""
@@ -159,7 +195,8 @@ def userData_handler5686(line):
     It is known cuota type (garaje, local, vecino)
     """
     LOGGER.debug("%s", line)
-    cuo = RESULT["cuotas"][-1]
+    cuotas = RESULT["cuotas"][-1]
+
     persona = RESULT["personas"][-1]
     persona.via = line[68:71].strip()
     persona.pobla = line[108:116].strip()
@@ -172,22 +209,22 @@ def userData_handler5686(line):
 
     # Pattern matching depending on cuota type
     m = None
-    if cuo.numcuota == 4:
+    if 4 in cuotas.cuotas:
         # TRASTERO
         persona.piso = persona.calle
         persona.numcalle = 0
         pis_obj.piso = persona.piso
-    elif cuo.numcuota == 3:
+    elif 3 in cuotas.cuotas:
         #LOCAL
         persona.piso = persona.calle
         persona.numcalle = 0
         pis_obj.piso = persona.piso
-    elif cuo.numcuota == 2:
+    elif 2 in cuotas.cuotas:
         #GARAJE
         persona.piso = persona.calle
         persona.numcalle = 0
         pis_obj.piso = persona.piso
-    elif cuo.numcuota == 1:
+    elif 1 in cuotas.cuotas:
         # VECINO
         m_1 = PISO_PORTAL_PATTERN_1.search(persona.calle)
         m_2 = PISO_PORTAL_PATTERN_2.search(persona.calle)
@@ -271,20 +308,32 @@ def convert(filename, file_dir, encoding="latin1"):
     LOGGER.info("WPISOS.TXT created!")
 
     # Cuotas
+    # Now, a register 5680 may have more than one type of cuotas
+    # Cuota.py object should remain simple
+    # Generate WCUOTAS filling more than one CUOTA (numcuota, titcuota)
     out_file = open(os.path.join(file_dir, "WCUOTAS.TXT"), 'w')
-    for entity in sorted ( RESULT["cuotas"], key=lambda x: x.numprop ):
-        cuotas = []
+    for cuotas in sorted ( RESULT["cuotas"], key=lambda x: x.numprop ):
+        cuotasArray = []
         for c_index_numcuota, c_index_titcuota in CUOTAS:
-            if entity.numcuota == c_index_numcuota:
-                cuotas.append(entity)
+            cuo = cuota.Cuota()
+            cuo.numcomu = cuotas.numcomu
+            cuo.numprop = cuotas.numprop
+            cuo.impresu = cuotas.impresu
+
+            # if there is in cuotas dict, then create cuota object with that info
+            if c_index_numcuota in cuotas.cuotas:
+                cuo.numcuota = c_index_numcuota
+                assert c_index_titcuota == cuotas.cuotas[c_index_numcuota]["titcuota"], "titcuota do not match: [%d, %d]" % (c_index_titcuota, cuotas.cuotas[c_index_numcuota]["titcuota"])
+                cuo.titcuota = c_index_titcuota
+                cuo.ptsrec = cuotas.cuotas[c_index_numcuota]["ptsrec"]
+                cuotasArray.append(cuo)
             else:
-                cuo = cuota.Cuota(entity)
                 cuo.numcuota = c_index_numcuota
                 cuo.titcuota = c_index_titcuota
                 cuo.ptsrec = 0
-                cuotas.append(cuo)
+                cuotasArray.append(cuo)
 
-        for cuo in cuotas:
+        for cuo in cuotasArray:
             cuo.write(out_file)
             out_file.write("\n")
 

@@ -3,22 +3,13 @@ CUOTA Object
 """
 class Cuota(object):
     """docstring for Cuota"""
-    def __init__(self, cuota = None):
-        if cuota :
-            self.numcomu = cuota.numcomu
-            self.numprop = cuota.numprop
-            self.numcuota = cuota.numcuota
-            self.titcuota = cuota.titcuota
-            self.impresu = cuota.impresu
-            self.ptsrec = cuota.ptsrec
-        else:
-            self.numcomu = None
-            self.numprop = None
-            self.numcuota = 0
-            self.titcuota = 0
-            self.impresu = 0
-            self.ptsrec = 0
-
+    def __init__(self):
+        self.numcomu = None
+        self.numprop = None
+        self.numcuota = 0
+        self.titcuota = 0
+        self.impresu = 0
+        self.ptsrec = 0
 
     def write(self, file_out):
         reg = []
