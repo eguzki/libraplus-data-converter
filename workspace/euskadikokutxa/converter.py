@@ -26,8 +26,9 @@ CUOTAS = [(1,1), (2,11), (3,2), (4,8), (5, 5),
           (11,11), (12,12)]
 
 LOGGER = None
-PISO_PORTAL_PATTERN_1 = re.compile("(\d+)-(\d+.*)")
-PISO_PORTAL_PATTERN_2 = re.compile("N\s+(\d+)\s+(\d+.*)")
+PISO_PORTAL_PATTERN_1 = re.compile("(\d+)\s*-\s*(\d+.*)")
+PISO_PORTAL_PATTERN_2 = re.compile("N*\s+(\d+)\s+(\d+.*)")
+PISO_PORTAL_PATTERN_3 = re.compile("N*\s+(\d+)\s+(ATICO|BAJO)\s*")
 LOCAL_PATTERN = re.compile("LOCAL")
 GARAJE_PATTERN  = re.compile("GARAJE")
 GENERIC_CUOTA_ANUAL_PATTERN = re.compile("CUOTA ANUAL\s+\d+[.\d,]*\s*$")
@@ -209,44 +210,37 @@ def userData_handler5686(line):
 
     # Pattern matching depending on cuota type
     m = None
-    if 4 in cuotas.cuotas:
-        # TRASTERO
-        persona.piso = persona.calle
-        persona.numcalle = 0
-        pis_obj.piso = persona.piso
-    elif 3 in cuotas.cuotas:
-        #LOCAL
-        persona.piso = persona.calle
-        persona.numcalle = 0
-        pis_obj.piso = persona.piso
-    elif 2 in cuotas.cuotas:
-        #GARAJE
-        persona.piso = persona.calle
-        persona.numcalle = 0
-        pis_obj.piso = persona.piso
-    elif 1 in cuotas.cuotas:
-        # VECINO
-        m_1 = PISO_PORTAL_PATTERN_1.search(persona.calle)
-        m_2 = PISO_PORTAL_PATTERN_2.search(persona.calle)
-        if m_1:
-            m = m_1
-        elif m_2:
-            m = m_2
+    
+    # VECINO
+    m_1 = PISO_PORTAL_PATTERN_1.search(persona.calle)
+    m_2 = PISO_PORTAL_PATTERN_2.search(persona.calle)
+    m_3 = PISO_PORTAL_PATTERN_3.search(persona.calle)
+    if m_1:
+        m = m_1
+    elif m_2:
+        m = m_2
+    elif m_3:
+        m = m_3
 
-        if m:
-            persona.piso = m.group(2).strip()
-            persona.numcalle = int(m.group(1))
-            persona.calle = persona.calle[:m.start()].strip().strip(".").strip()
-            pis_obj.piso = persona.piso
-        else:
-            LOGGER.warning("Cannot parse VECINO at register 5686: %s",
-                           persona.calle)
-            persona.piso = persona.calle
-            persona.numcalle = 0
-            pis_obj.piso = persona.piso
+    if m:
+        persona.piso = m.group(2).strip()
+        persona.numcalle = int(m.group(1))
+        persona.calle = persona.calle[:m.start()].strip().strip(".").strip()
+        pis_obj.piso = persona.piso
+    elif 1 not in cuotas.cuotas:
+        # EXCEPTION
+        # TRASTERO, LOCAL or GARAJE
+        persona.piso = persona.calle
+        persona.numcalle = 0
+        pis_obj.piso = persona.piso
     else:
-        assert False, "Unknow cuota on register 5686"
+        LOGGER.warning("Cannot parse VECINO at register 5686: %s",
+                       persona.calle)
+        persona.piso = persona.calle
+        persona.numcalle = 0
+        pis_obj.piso = persona.piso
 
+    # append piso
     RESULT["pisos"].append(pis_obj)
 
 def end_of_file(line):
