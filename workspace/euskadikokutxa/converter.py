@@ -53,7 +53,18 @@ def userData_handler5680(line):
     LOGGER.debug("%s", line)
     persona = user.User()
     comu = RESULT["comunidad"]
-    persona.numprop = int(line[24:28])
+
+    # Calculate numcomu and numprop format
+    if divmod(int(line[22:25]), 100)[0] == 0:
+        # numprop contains numcomu
+        persona.numprop = int(line[24:28])
+        comu.numcomu = None
+    else:
+        # numcomu has 3 digits and numprop does not contain
+        persona.numprop = int(line[25:28])
+        comu.numcomu = int(line[22:25])
+
+    #
     persona.nombre = line[28:68].strip()
     persona.banco = line[68:72]
     persona.sucursal = line[72:76]
@@ -89,7 +100,7 @@ def userData_handler5681(line):
     LOGGER.debug("%s", line)
     persona = RESULT["personas"][-1]
     cuotas = RESULT["cuotas"][-1]
-    cuotas.numprop = int(line[24:28])
+    #cuotas.numprop = int(line[24:28])
     cuoObject = {
             "titcuota": 0,
             "ptsrec": 0.0
@@ -126,7 +137,7 @@ def userData_handler5682(line):
 
     #import pdb
     #pdb.set_trace()
-    cuotas.numprop = int(line[24:28])
+    #cuotas.numprop = int(line[24:28])
 
     cuoObject = {
             "titcuota": 0,
@@ -168,7 +179,7 @@ def userData_handler5683(line):
         # There is a previous 5681 or 5682 register, forget this one
         return
 
-    cuotas.numprop = int(line[24:28])
+    #cuotas.numprop = int(line[24:28])
     # 5683 associated to numcuota = 4, titcuota = 8
     cuoObject = {
             "titcuota": 8,
@@ -246,11 +257,13 @@ def userData_handler5686(line):
 def end_of_file(line):
     """docstring for end_of_file"""
     LOGGER.debug("%s", line)
-    # Compute numComu
-    numcomu = min ( [ divmod(persona.numprop, 100)[0] for persona in RESULT["personas"] ] )
-    # Override numcomu for testing
-    #numcomu = 70
-    RESULT["comunidad"].numcomu = numcomu
+    numcomu = RESULT["comunidad"].numcomu
+    if not numcomu:
+        # numcomu was not set
+        # Compute numComu
+        numcomu = min ( [ divmod(persona.numprop, 100)[0] for persona in RESULT["personas"] ] )
+        RESULT["comunidad"].numcomu = numcomu
+
     for persona in RESULT["personas"]:
         persona.numcomu = numcomu
     for pisos in RESULT["pisos"]:

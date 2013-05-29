@@ -73,16 +73,36 @@ class User(object):
 #21  FAX     Caracter    10              No
 #22  BANCO   Numerico    4               No
         data = self.banco[:4].encode("latin1")
-        reg[355:359] = "%4s" % data
+        if data.isdigit():
+            data = int(data)
+            reg[355:359] = "%04d" % data
+        else:
+            data = "****"
+            reg[355:359] = data
 #23  SUCURSAL    Numerico    4               No
         data = self.sucursal[:4].encode("latin1")
-        reg[359:363] = "%4s" % data
+        if data.isdigit():
+            data = int(data)
+            reg[359:363] = "%04d" % data
+        else:
+            data = "****"
+            reg[359:363] = data
 #24  DCCUENTA    Caracter    2               No
         data = self.dccuenta[:2].encode("latin1")
-        reg[363:365] = "%2s" % data
+        if data.isdigit():
+            data = int(data)
+            reg[363:365] = "%02d" % data
+        else:
+            data = "**"
+            reg[363:365] = data
 #25  NUMCTA  Numerico    10              No
         data = self.numcta[:10].encode("latin1")
-        reg[365:375] = "%10s" % data
+        if data.isdigit():
+            data = int(data)
+            reg[365:375] = "%010d" % data
+        else:
+            data = "**********"
+            reg[365:375] = data
 #26  CORREO  Caracter    50              No
 #27  MODOPAGO    Caracter    1               No
 #28  TIPOPER     Caracter    1               No

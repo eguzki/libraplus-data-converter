@@ -112,13 +112,13 @@ class Comunidad(object):
         # removed one char from this field
         reg.append(" "*9)
 # 40  BBBCOMU2    Numerico    4               No
-        reg.append("%4d" % self.banco)
+        reg.append("%04d" % self.banco)
 # 41  OOOCOMU2    Numerico    4               No
-        reg.append("%4d" % self.sucursal)
+        reg.append("%04d" % self.sucursal)
 # 42  DCCCOMU2    Caracter    2               No
-        reg.append("%2d" % self.dc)
+        reg.append("%02d" % self.dc)
 # 43  CCCCOMU2    Numerico    10              No
-        reg.append("%10d" % self.ccuenta)
+        reg.append("%010d" % self.ccuenta)
 # 44  BBBCOMU3    Numerico    4               No
         reg.append(" "*4)
 # 45  OOOCOMU3    Numerico    4               No
