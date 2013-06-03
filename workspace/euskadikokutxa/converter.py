@@ -29,6 +29,7 @@ LOGGER = None
 PISO_PORTAL_PATTERN_1 = re.compile("(\d+)\s*-\s*(\d+.*)")
 PISO_PORTAL_PATTERN_2 = re.compile("N*\s+(\d+)\s+(\d+.*)")
 PISO_PORTAL_PATTERN_3 = re.compile("N*\s+(\d+)\s+(ATICO|BAJO)\s*")
+PISO_PORTAL_PATTERN_4 = re.compile("(\d+\s+BIS)\s+(-)\s*")
 LOCAL_PATTERN = re.compile("LOCAL")
 GARAJE_PATTERN  = re.compile("GARAJE")
 GENERIC_CUOTA_ANUAL_PATTERN = re.compile("CUOTA ANUAL\s+\d+[.\d,]*\s*$")
@@ -175,8 +176,9 @@ def userData_handler5683(line):
     cuotas = RESULT["cuotas"][-1]
 
     # 5683 associated to numcuota = ?
-    if len(cuotas.cuotas) != 0:
-        # There is a previous 5681 or 5682 register, forget this one
+    if 4 in cuotas.cuotas:
+        # There is a previous cuota like this, forget
+        LOGGER.debug("forgetting cuota: %s", line)
         return
 
     #cuotas.numprop = int(line[24:28])
@@ -226,29 +228,32 @@ def userData_handler5686(line):
     m_1 = PISO_PORTAL_PATTERN_1.search(persona.calle)
     m_2 = PISO_PORTAL_PATTERN_2.search(persona.calle)
     m_3 = PISO_PORTAL_PATTERN_3.search(persona.calle)
+    m_4 = PISO_PORTAL_PATTERN_4.search(persona.calle)
     if m_1:
         m = m_1
     elif m_2:
         m = m_2
     elif m_3:
         m = m_3
+    elif m_4:
+        m = m_4
 
     if m:
         persona.piso = m.group(2).strip()
-        persona.numcalle = int(m.group(1))
+        persona.numcalle = m.group(1)
         persona.calle = persona.calle[:m.start()].strip().strip(".").strip()
         pis_obj.piso = persona.piso
     elif 1 not in cuotas.cuotas:
         # EXCEPTION
         # TRASTERO, LOCAL or GARAJE
         persona.piso = persona.calle
-        persona.numcalle = 0
+        persona.numcalle = "0"
         pis_obj.piso = persona.piso
     else:
         LOGGER.warning("Cannot parse VECINO at register 5686: %s",
                        persona.calle)
         persona.piso = persona.calle
-        persona.numcalle = 0
+        persona.numcalle = "0"
         pis_obj.piso = persona.piso
 
     # append piso
