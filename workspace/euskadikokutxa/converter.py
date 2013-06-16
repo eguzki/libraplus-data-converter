@@ -30,9 +30,10 @@ PISO_PORTAL_PATTERN_1 = re.compile("(\d+)\s*-\s*(\d+.*)")
 PISO_PORTAL_PATTERN_2 = re.compile("N*\s+(\d+)\s+(\d+.*)")
 PISO_PORTAL_PATTERN_3 = re.compile("N*\s+(\d+)\s+(ATICO|BAJO)\s*")
 PISO_PORTAL_PATTERN_4 = re.compile("(\d+\s+BIS)\s+(-)\s*")
+PISO_PORTAL_PATTERN_5 = re.compile("(\d+\s+BIS)\s+(\d+.*)\s*")
 LOCAL_PATTERN = re.compile("LOCAL")
 GARAJE_PATTERN  = re.compile("GARAJE")
-GENERIC_CUOTA_ANUAL_PATTERN = re.compile("CUOTA ANUAL\s+\d+[.\d,]*\s*$")
+GENERIC_CUOTA_ANUAL_PATTERN = re.compile("CUOTA ANUAL\s+[a-zA-Z]*\s+\d+[.\d,]*\s*$")
 COMUNIDAD_CUOTA_PATTERN = re.compile("CUOTA COMUNIDAD\s+\d+[.\d,]*\s*$")
 CUOTA_EXTRA_PATTERN = re.compile("CUOTA EXTRA")
 CUOTA_PATTERN = re.compile("\s\d+[.\d,]*\s*$")
@@ -121,8 +122,8 @@ def userData_handler5681(line):
         cuoObject["titcuota"] = 1
         cuotas.cuotas[1] = cuoObject
     else:
-        assert False, "register 5681 is neither a LOCAL nor GARAJE "
-        "nor CUOTA ANUAL not CUOTA COMUNIDAD"
+        assert False, ("register 5681 is neither a LOCAL nor GARAJE "
+        "nor CUOTA ANUAL not CUOTA COMUNIDAD")
 
     data = line[28:].strip()
     m = CUOTA_PATTERN.search(data)
@@ -229,6 +230,7 @@ def userData_handler5686(line):
     m_2 = PISO_PORTAL_PATTERN_2.search(persona.calle)
     m_3 = PISO_PORTAL_PATTERN_3.search(persona.calle)
     m_4 = PISO_PORTAL_PATTERN_4.search(persona.calle)
+    m_5 = PISO_PORTAL_PATTERN_5.search(persona.calle)
     if m_1:
         m = m_1
     elif m_2:
@@ -237,6 +239,8 @@ def userData_handler5686(line):
         m = m_3
     elif m_4:
         m = m_4
+    elif m_5:
+        m = m_5
 
     if m:
         persona.piso = m.group(2).strip()
