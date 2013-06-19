@@ -31,9 +31,10 @@ PISO_PORTAL_PATTERN_2 = re.compile("N*\s+(\d+)\s+(\d+.*)")
 PISO_PORTAL_PATTERN_3 = re.compile("N*\s+(\d+)\s+(ATICO|BAJO)\s*")
 PISO_PORTAL_PATTERN_4 = re.compile("(\d+\s+BIS)\s+(-)\s*")
 PISO_PORTAL_PATTERN_5 = re.compile("(\d+\s+BIS)\s+(\d+.*)\s*")
+PISO_PORTAL_PATTERN_6 = re.compile("(\d+)\s*-(.*)\s*$")
 LOCAL_PATTERN = re.compile("LOCAL")
 GARAJE_PATTERN  = re.compile("GARAJE")
-GENERIC_CUOTA_ANUAL_PATTERN = re.compile("CUOTA ANUAL\s+[a-zA-Z]*\s+\d+[.\d,]*\s*$")
+GENERIC_CUOTA_ANUAL_PATTERN = re.compile("CUOTA ANUAL\s+[a-zA-Z0-9\(\)]*\s+\d+[.\d,]*\s*$")
 COMUNIDAD_CUOTA_PATTERN = re.compile("CUOTA COMUNIDAD\s+\d+[.\d,]*\s*$")
 CUOTA_EXTRA_PATTERN = re.compile("CUOTA EXTRA")
 CUOTA_PATTERN = re.compile("\s\d+[.\d,]*\s*$")
@@ -57,13 +58,16 @@ def userData_handler5680(line):
     comu = RESULT["comunidad"]
 
     # Calculate numcomu and numprop format
-    if divmod(int(line[22:25]), 100)[0] == 0:
+    if int(line[19:23]) != 0:
+        persona.numprop = len(RESULT["personas"]) + 1
+        comu.numcomu = int(line[19:23])
+    elif divmod(int(line[22:25]), 100)[0] == 0:
         # numprop contains numcomu
         persona.numprop = int(line[24:28])
         comu.numcomu = None
     else:
         # numcomu has 3 digits and numprop does not contain
-        persona.numprop = int(line[25:28])
+        persona.numprop = len(RESULT["personas"]) + 1
         comu.numcomu = int(line[22:25])
 
     #
@@ -153,6 +157,10 @@ def userData_handler5682(line):
         # 5682 associated to numcuota = 4, titcuota = 8
         cuoObject["titcuota"] = 8
         cuotas.cuotas[4] = cuoObject
+    elif GENERIC_CUOTA_ANUAL_PATTERN.search(line[28:]):
+        # 5682 associated to numcuota = 2, titcuota = 11
+        cuoObject["titcuota"] = 11
+        cuotas.cuotas[2] = cuoObject
     elif len(cuotas.cuotas) != 0:
         # There is a previous 5681 register, forget this one
         return
@@ -231,6 +239,7 @@ def userData_handler5686(line):
     m_3 = PISO_PORTAL_PATTERN_3.search(persona.calle)
     m_4 = PISO_PORTAL_PATTERN_4.search(persona.calle)
     m_5 = PISO_PORTAL_PATTERN_5.search(persona.calle)
+    m_6 = PISO_PORTAL_PATTERN_6.search(persona.calle)
     if m_1:
         m = m_1
     elif m_2:
@@ -241,6 +250,8 @@ def userData_handler5686(line):
         m = m_4
     elif m_5:
         m = m_5
+    elif m_6:
+        m = m_6
 
     if m:
         persona.piso = m.group(2).strip()
