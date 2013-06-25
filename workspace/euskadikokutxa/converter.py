@@ -35,6 +35,7 @@ PISO_PORTAL_PATTERN_6 = re.compile("(\d+)\s*-(.*)\s*$")
 LOCAL_PATTERN = re.compile("LOCAL")
 GARAJE_PATTERN  = re.compile("GARAJE")
 GENERIC_CUOTA_ANUAL_PATTERN = re.compile("CUOTA ANUAL\s+[a-zA-Z0-9\(\)]*\s+\d+[.\d,]*\s*$")
+GENERIC_CUOTA_TRIMESTRAL_PATTERN = re.compile("CUOTA TRIMESTRAL\s+[a-zA-Z0-9\(\)]*\s+\d+[.\d,]*\s*$")
 COMUNIDAD_CUOTA_PATTERN = re.compile("CUOTA COMUNIDAD\s+\d+[.\d,]*\s*$")
 CUOTA_EXTRA_PATTERN = re.compile("CUOTA EXTRA")
 CUOTA_PATTERN = re.compile("\s\d+[.\d,]*\s*$")
@@ -153,7 +154,8 @@ def userData_handler5682(line):
     # Check there is extra,
     # in this case, we are adding one cuota register to RESULT["cuotas"]
     # otherwise, associate to numcuota=1 unless it was already assigned
-    if CUOTA_EXTRA_PATTERN.search(line[28:]):
+    if (CUOTA_EXTRA_PATTERN.search(line[28:]) or
+            GENERIC_CUOTA_TRIMESTRAL_PATTERN.search(line[28:])):
         # 5682 associated to numcuota = 4, titcuota = 8
         cuoObject["titcuota"] = 8
         cuotas.cuotas[4] = cuoObject
