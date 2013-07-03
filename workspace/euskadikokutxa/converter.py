@@ -59,17 +59,12 @@ def userData_handler5680(line):
     comu = RESULT["comunidad"]
 
     # Calculate numcomu and numprop format
-    if int(line[19:23]) != 0:
-        persona.numprop = len(RESULT["personas"]) + 1
-        comu.numcomu = int(line[19:23])
-    elif divmod(int(line[22:25]), 100)[0] == 0:
+    if divmod(int(line[22:25]), 100)[0] == 0:
         # numprop contains numcomu
         persona.numprop = int(line[24:28])
         comu.numcomu = None
     else:
-        # numcomu has 3 digits and numprop does not contain
-        persona.numprop = len(RESULT["personas"]) + 1
-        comu.numcomu = int(line[22:25])
+        assert False, "cannot read user id"
 
     #
     persona.nombre = line[28:68].strip()
