@@ -26,6 +26,7 @@ CUOTAS = [(1,1), (2,11), (3,2), (4,8), (5, 5),
           (11,11), (12,12)]
 
 LOGGER = None
+VIA_PATTERN = re.compile("^(C/|AVDA[.]?|PZA[.]?|PZ[.]?)\s")
 PISO_PORTAL_PATTERN_1 = re.compile("(\d+)\s*-\s*(\d+.*)")
 PISO_PORTAL_PATTERN_2 = re.compile("N*\s+(\d+)\s+(\d+.*)")
 PISO_PORTAL_PATTERN_3 = re.compile("N*\s+(\d+)\s+(ATICO|BAJO)\s*")
@@ -34,7 +35,7 @@ PISO_PORTAL_PATTERN_5 = re.compile("(\d+\s+BIS)\s+(\d+.*)\s*")
 PISO_PORTAL_PATTERN_6 = re.compile("(\d+)\s*-(.*)\s*$")
 LOCAL_PATTERN = re.compile("LOCAL")
 GARAJE_PATTERN  = re.compile("GARAJE")
-GENERIC_CUOTA_ANUAL_PATTERN = re.compile("CUOTA ANUAL\s+[a-zA-Z0-9\(\)]*\s+\d+[.\d,]*\s*$")
+GENERIC_CUOTA_ANUAL_PATTERN = re.compile("CUOTA ANUAL\s+[a-zA-Z0-9\(\)/]*\s+\d+[.\d,]*\s*$")
 GENERIC_CUOTA_TRIMESTRAL_PATTERN = re.compile("CUOTA TRIMESTRAL\s+[a-zA-Z0-9\(\)]*\s+\d+[.\d,]*\s*$")
 COMUNIDAD_CUOTA_PATTERN = re.compile("CUOTA COMUNIDAD\s+\d+[.\d,]*\s*$")
 CUOTA_EXTRA_PATTERN = re.compile("CUOTA EXTRA")
@@ -158,9 +159,6 @@ def userData_handler5682(line):
         # 5682 associated to numcuota = 2, titcuota = 11
         cuoObject["titcuota"] = 11
         cuotas.cuotas[2] = cuoObject
-    elif len(cuotas.cuotas) != 0:
-        # There is a previous 5681 register, forget this one
-        return
     else:
         # 5682 associated to numcuota = 1, titcuota = 1
         cuoObject["titcuota"] = 1
@@ -202,8 +200,27 @@ def userData_handler5683(line):
     cuoObject["ptsrec"] = float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
 
 def userData_handler5684(line):
-    """docstring for userDataHandler5684"""
+    """
+    docstring for userDataHandler5684
+    """
     LOGGER.debug("%s", line)
+    cuotas = RESULT["cuotas"][-1]
+
+    cuoObject = {
+            "titcuota": 0,
+            "ptsrec": 0.0
+            }
+
+    # 5684 associated to numcuota = 3, titcuota = 2
+    cuoObject["titcuota"] = 2
+    cuotas.cuotas[3] = cuoObject
+
+    data = line[28:].strip()
+    m = CUOTA_PATTERN.search(data)
+    if not m:
+        assert False, "Unknow cuota number on register 5684"
+
+    cuoObject["ptsrec"] = float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
 
 def userData_handler5685(line):
     """docstring for userDataHandler5685"""
@@ -218,10 +235,24 @@ def userData_handler5686(line):
     cuotas = RESULT["cuotas"][-1]
 
     persona = RESULT["personas"][-1]
-    persona.via = line[68:71].strip()
+
+    # Via 
+    m = None
+    m = VIA_PATTERN.search(line[68:74])
+    if m:
+        # only first 2 chars will be written to output file
+        persona.via = line[68:71].strip()
+        viaIndex = 68 + len(m.group(1))
+        persona.calle = line[viaIndex:108].strip()
+    else:
+        # default via: C/
+        persona.via = "C/"
+        persona.calle = line[68:108].strip()
+        LOGGER.debug("calle def:  %s", persona.calle)
+
+    # only 
     persona.pobla = line[108:116].strip()
     persona.cpostal = int(line[143:148])
-    persona.calle = line[71:108].strip()
 
     pis_obj = piso.Piso()
     pis_obj.numprop = persona.numprop
