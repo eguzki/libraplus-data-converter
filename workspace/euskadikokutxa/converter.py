@@ -305,6 +305,7 @@ def userData_handler5686(line):
 def end_of_file(line):
     """docstring for end_of_file"""
     LOGGER.debug("%s", line)
+    #RESULT["comunidad"].numcomu = 690
     numcomu = RESULT["comunidad"].numcomu
     if not numcomu:
         # numcomu was not set
