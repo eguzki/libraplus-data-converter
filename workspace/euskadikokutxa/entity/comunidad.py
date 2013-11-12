@@ -116,6 +116,8 @@ class Comunidad(object):
 # 41  OOOCOMU2    Numerico    4               No
         reg.append("%04d" % self.sucursal)
 # 42  DCCCOMU2    Caracter    2               No
+        #data = self.dc
+        #reg.append(data + " "*(2 - len(data)))
         reg.append("%02d" % self.dc)
 # 43  CCCCOMU2    Numerico    10              No
         reg.append("%010d" % self.ccuenta)

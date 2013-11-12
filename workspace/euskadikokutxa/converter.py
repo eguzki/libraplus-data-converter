@@ -60,12 +60,25 @@ def userData_handler5680(line):
     comu = RESULT["comunidad"]
 
     # Calculate numcomu and numprop format
-    if divmod(int(line[22:25]), 100)[0] == 0:
-        # numprop contains numcomu
-        persona.numprop = int(line[24:28])
-        comu.numcomu = None
-    else:
-        assert False, "cannot read user id"
+    numcomuStr = "101"
+    numcomu = 101
+
+    # numprop contains numcomu
+    numpro = line[22:28].strip()
+    numproIndex = numpro.index(numcomuStr)
+    #persona.numprop = int(line[24:28])
+    persona.numprop = int(numpro[numproIndex + len(numcomuStr):])
+    #numpropTmp = int(numpro[numproIndex + len(numcomuStr):])
+    #if divmod(numpropTmp, 100)[0] == 0:
+        # id not bigger than 100
+        # 9723 -> 9723
+    #    persona.numprop = int(line[24:28])
+    #else:
+        # id bigger than 100
+        # 97123 -> 9823
+    #    persona.numprop = numcomu * 100 + numpropTmp
+
+    comu.numcomu = None
 
     #
     persona.nombre = line[28:68].strip()
@@ -81,14 +94,24 @@ def userData_handler5680(line):
     cuotas.numprop = persona.numprop
 
     data = line[28:].strip()
+
+
     m = CUOTA_PATTERN.search(data)
     if m:
-        #cuo.numcuota = 1
-        #cuo.titcuota = 1
-        cuotas.cuotas[1] = {
-                "titcuota": 1,
+        cuoObject = {
+                "titcuota": 0,
                 "ptsrec": float(str(m.group(0).strip()).translate(None, ".").replace(",", "."))
                 }
+
+        if (GENERIC_CUOTA_TRIMESTRAL_PATTERN.search(data)):
+            # 5682 associated to numcuota = 4, titcuota = 8
+            cuoObject["titcuota"] = 8
+            cuotas.cuotas[4] = cuoObject
+        else:
+            # 5680 associated to numcuota = 1, titcuota = 1
+            cuoObject["titcuota"] = 1
+            cuotas.cuotas[1] = cuoObject
+
 
     LOGGER.info("New propietario!: %2d: %s\n", persona.numprop,
                 persona.nombre.encode("latin1"))
@@ -155,7 +178,8 @@ def userData_handler5682(line):
         # 5682 associated to numcuota = 4, titcuota = 8
         cuoObject["titcuota"] = 8
         cuotas.cuotas[4] = cuoObject
-    elif GENERIC_CUOTA_ANUAL_PATTERN.search(line[28:]):
+    elif (GARAJE_PATTERN.search(line[28:]) or 
+          GENERIC_CUOTA_ANUAL_PATTERN.search(line[28:])):
         # 5682 associated to numcuota = 2, titcuota = 11
         cuoObject["titcuota"] = 11
         cuotas.cuotas[2] = cuoObject
@@ -310,6 +334,7 @@ def end_of_file(line):
         # numcomu was not set
         # Compute numComu
         numcomu = min ( [ divmod(persona.numprop, 100)[0] for persona in RESULT["personas"] ] )
+        numcomu = 101
         RESULT["comunidad"].numcomu = numcomu
 
     for persona in RESULT["personas"]:
