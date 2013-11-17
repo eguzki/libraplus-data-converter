@@ -19,7 +19,7 @@ get_abs_path()
 usage() 
 {
     cat << EOF
-Usage: `basename $0` [-v] [-f logfile] [-e encoding] libraplus_data_filename"
+Usage: `basename $0` [-v] [-f logfile] [-e encoding] libraplus_data_filename numcom"
 
 This script parses Libraplus data filename and converts to Gesfincas format
 
@@ -67,7 +67,15 @@ then
     usage
 fi
 
+if [ "X$2" =  "X" ]
+then
+    echo "numcom missing" >&2
+    usage
+fi
+
 DATA_FILE=$(get_abs_path $1)
+
+NUMCOMU=$2
 
 # Create log directory
 mkdir -p `dirname "$LOG_FILE"`
@@ -84,5 +92,5 @@ echo "data_file: $DATA_FILE"
 echo "output_file: $OUTPUT_DIR"
 
 cd $WORKSPACE
-python workspace/euskadikokutxa/converter.py -l $LOG_LEVEL -f "$LOG_FILE" -e $ENCODING -o $OUTPUT_DIR $DATA_FILE
+python workspace/euskadikokutxa/converter.py -l $LOG_LEVEL -f "$LOG_FILE" -e $ENCODING -o $OUTPUT_DIR $DATA_FILE $NUMCOMU
 
