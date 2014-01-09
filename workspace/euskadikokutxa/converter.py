@@ -4,7 +4,6 @@ import optparse
 import sys
 import os
 import re
-from datetime import datetime
 import codecs
 from entity import comunidad, cuota, piso, user, cuotaCollection
 
@@ -44,10 +43,8 @@ CUOTA_PATTERN = re.compile("\s\d+[.\d,]*\s*$")
 def userData_handler5380(line):
     """docstring for comunidad"""
     LOGGER.debug("%s", line)
-    comu = comunidad.Comunidad()
-    comu.parse(line)
-    RESULT["comunidad"] = comu
-    LOGGER.info("New comunidad!: %s\n", comu.nombre)
+    RESULT["comunidad"].parse(line)
+    LOGGER.info("New comunidad!: %s\n", RESULT["comunidad"].nombre)
 
 def userData_handler5680(line):
     """
@@ -60,8 +57,8 @@ def userData_handler5680(line):
     comu = RESULT["comunidad"]
 
     # Calculate numcomu and numprop format
-    numcomuStr = "101"
-    numcomu = 101
+    numcomuStr = str(RESULT["comunidad"].numcomu)
+    #numcomu = RESULT["comunidad"].numcomu
 
     # numprop contains numcomu
     numpro = line[22:28].strip()
@@ -78,9 +75,6 @@ def userData_handler5680(line):
         # 97123 -> 9823
     #    persona.numprop = numcomu * 100 + numpropTmp
 
-    comu.numcomu = None
-
-    #
     persona.nombre = line[28:68].strip()
     persona.banco = line[68:72]
     persona.sucursal = line[72:76]
@@ -92,7 +86,11 @@ def userData_handler5680(line):
     RESULT["cuotas"].append(cuotas)
 
     cuotas.numprop = persona.numprop
-
+#######
+#    if (cuotas.numprop == 14):
+#        import pdb 
+#        pdb.set_trace()
+##########
     data = line[28:].strip()
 
 
@@ -104,9 +102,13 @@ def userData_handler5680(line):
                 }
 
         if (GENERIC_CUOTA_TRIMESTRAL_PATTERN.search(data)):
-            # 5682 associated to numcuota = 4, titcuota = 8
+            # 5680 associated to numcuota = 4, titcuota = 8
             cuoObject["titcuota"] = 8
             cuotas.cuotas[4] = cuoObject
+        elif (GENERIC_CUOTA_ANUAL_PATTERN.search(data)):
+            # 5680 associated to numcuota = 2, titcuota = 11
+            cuoObject["titcuota"] = 11
+            cuotas.cuotas[2] = cuoObject
         else:
             # 5680 associated to numcuota = 1, titcuota = 1
             cuoObject["titcuota"] = 1
@@ -173,7 +175,11 @@ def userData_handler5682(line):
     # Check there is extra,
     # in this case, we are adding one cuota register to RESULT["cuotas"]
     # otherwise, associate to numcuota=1 unless it was already assigned
-    if (CUOTA_EXTRA_PATTERN.search(line[28:]) or
+    if LOCAL_PATTERN.search(line[28:]):
+        # 5681 associated to numcuota = 3, titcuota = 2
+        cuoObject["titcuota"] = 2
+        cuotas.cuotas[3] = cuoObject
+    elif (CUOTA_EXTRA_PATTERN.search(line[28:]) or
             GENERIC_CUOTA_TRIMESTRAL_PATTERN.search(line[28:])):
         # 5682 associated to numcuota = 4, titcuota = 8
         cuoObject["titcuota"] = 8
@@ -331,12 +337,6 @@ def end_of_file(line):
     LOGGER.debug("%s", line)
     #RESULT["comunidad"].numcomu = 690
     numcomu = RESULT["comunidad"].numcomu
-    if not numcomu:
-        # numcomu was not set
-        # Compute numComu
-        numcomu = min ( [ divmod(persona.numprop, 100)[0] for persona in RESULT["personas"] ] )
-        numcomu = 101
-        RESULT["comunidad"].numcomu = numcomu
 
     for persona in RESULT["personas"]:
         persona.numcomu = numcomu
@@ -438,10 +438,14 @@ def main():
     parser.add_option('-e', '--encoding', help='file encoding', default="latin1")
     parser.add_option('-o', '--output', help='output dir')
     (options, args) = parser.parse_args()
+
+    assert len(args) == 2, "missin input params, check doc"
+
     logging_level = LOGGING_LEVELS.get(options.logging_level, logging.NOTSET)
     logging.basicConfig(level=logging_level,
                         filename=options.logging_file,
                         format='%(asctime)-15s %(levelname)s: %(message)s')
+
     global LOGGER
     LOGGER = logging.getLogger()
     console_handler = logging.StreamHandler(sys.stdout)
@@ -453,7 +457,12 @@ def main():
     if not os.path.exists( output_dir ):
         os.makedirs( output_dir )
 
-    filename = sys.argv[-1]
+    filename = args[0] 
+
+    # comunidad
+    RESULT["comunidad"] = comunidad.Comunidad()
+    RESULT["comunidad"].numcomu = int(args[1]);
+
     #Input parameter parsing logic
     LOGGER.info(("Starting job pid: %s "
                  "filename: %s logfile: %s\n"),

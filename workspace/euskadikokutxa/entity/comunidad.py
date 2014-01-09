@@ -5,12 +5,12 @@ class Comunidad(object):
     """docstring for Comunidad"""
     def __init__(self):
         self.numcomu = None
-        self.nombre= None
+        self.nombre = None
         self.nif = None
         self.direc = None
         self.codpostal = 31003
         self.banco = None
-        self.sucursal= None
+        self.sucursal = None
         self.dc = None
         self.ccuenta = None
 
@@ -22,8 +22,12 @@ class Comunidad(object):
         self.nombre = self.direc
         self.nif = line[4:13].strip()
         self.banco = int(line[68:72].strip())
-        self.sucursal= int( line[72:76].strip() )
-        self.dc = int( line[76:78].strip() )
+        self.sucursal = int( line[72:76].strip() )
+        try:
+            self.dc = int( line[76:78].strip() )
+        except ValueError:
+            # could not parse dc, leave it as **
+            self.dc = "**"
         self.ccuenta = int( line[78:88].strip() )
 
     def write(self, file_out):
@@ -116,9 +120,12 @@ class Comunidad(object):
 # 41  OOOCOMU2    Numerico    4               No
         reg.append("%04d" % self.sucursal)
 # 42  DCCCOMU2    Caracter    2               No
-        #data = self.dc
-        #reg.append(data + " "*(2 - len(data)))
-        reg.append("%02d" % self.dc)
+        dc_ = ""
+        if isinstance(self.dc, int):
+            dc_ = "%02d" % self.dc
+        else:
+            dc_ = self.dc + " "*(2-len(self.dc))
+        reg.append(dc_)
 # 43  CCCCOMU2    Numerico    10              No
         reg.append("%010d" % self.ccuenta)
 # 44  BBBCOMU3    Numerico    4               No
